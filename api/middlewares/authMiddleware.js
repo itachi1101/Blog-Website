@@ -1,32 +1,21 @@
 const jwt = require("jsonwebtoken");
+const Post = require("../models/postSchema");
 const User = require("../models/userSchema");
-const requireAuth = (req, res, next) => {
-  const token = req.cookies.jwt;
-  if (token) {
-    jwt.verify(token, "mysecret", (err, decodedToken) => {
-      if (err) res.send("/login");
-      else next();
+const auth = async (req, res, next) => {
+  try {
+    const token = req.header("Authorization").replace("Bearer ", "");
+    const decoded = jwt.verify(token, "secret");
+    const user = await User.findOne({
+      _id: decoded._id,
+      "tokens.token": token,
     });
-  } else {
-    res.redirect("/login");
-  }
-};
-const checkUser = (req, res, next) => {
-  const token = req.cookies.jwt;
-  if (token) {
-    jwt.verify(token, "mysecret", async (err, decodedToken) => {
-      if (err) {
-        res.locals.user = null;
-        next();
-      } else {
-        const user = await User.findById(decodedToken.id);
-        res.locals.user;
-        next();
-      }
-    });
-  } else {
-    res.locals.user = null;
+    if (!user) {
+      throw new Error();
+    }
+    req.user = user;
     next();
+  } catch (e) {
+    res.status(401).send({ error: "Please authenticate" });
   }
 };
-module.exports = { requireAuth, checkUser };
+module.exports = auth;
